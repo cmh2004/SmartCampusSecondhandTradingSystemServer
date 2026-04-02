@@ -1,0 +1,79 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"hasInstallRule" : true,
+					"jsonFile" : "directory-.-Debug-33bfaa51a140fc4628ce.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.16"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2
+					]
+				}
+			],
+			"name" : "Debug",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "SmartCampusSecondhandTradingSystemServer",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "SmartCampusSecondhandTradingSystemServer::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-SmartCampusSecondhandTradingSystemServer-Debug-4fe401da14755220af4a.json",
+					"name" : "SmartCampusSecondhandTradingSystemServer",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "SmartCampusSecondhandTradingSystemServer_autogen::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-SmartCampusSecondhandTradingSystemServer_autogen-Debug-fc72270d23dcbf3d4268.json",
+					"name" : "SmartCampusSecondhandTradingSystemServer_autogen",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "SmartCampusSecondhandTradingSystemServer_autogen_timestamp_deps::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-SmartCampusSecondhandTradingSystemServer_autogen_timestamp_deps-Debug-1f3839d1af02830f7e88.json",
+					"name" : "SmartCampusSecondhandTradingSystemServer_autogen_timestamp_deps",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "D:/Study_Notes/Graduation_Project/SmartCampusSecondhandTradingSystemServer/build/Desktop_Qt_6_5_3_MinGW_64_bit-Debug",
+		"source" : "D:/Study_Notes/Graduation_Project/SmartCampusSecondhandTradingSystemServer"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 7
+	}
+}
