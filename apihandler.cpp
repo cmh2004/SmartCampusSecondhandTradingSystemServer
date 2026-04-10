@@ -3,6 +3,8 @@
 #include <QUuid>
 #include <QDateTime>
 #include <QDir>
+#include <QEventLoop>
+#include "hunyuanclient.h"
 
 ApiHandler::ApiHandler(DatabaseManager *db, WebSocketServer *ws, QObject *parent)
     : QObject(parent), m_db(db), m_ws(ws)
@@ -1149,39 +1151,95 @@ QJsonObject ApiHandler::handleGetStatistics(int userId, const QJsonObject &data)
 QJsonObject ApiHandler::handleEstimatePrice(int userId, const QJsonObject &data)
 {
     QString description = data.value("description").toString();
-    QString imagePath = data.value("image_path").toString();
+    QString imageBase64 = data.value("image_base64").toString();  // 支持客户端传base64图片
 
-    if (description.isEmpty() && imagePath.isEmpty()) {
+    if (description.isEmpty() && imageBase64.isEmpty()) {
         return {{"success", false}, {"error", "请提供商品描述或图片"}};
     }
 
-    // 模拟AI估价：根据描述关键词简单返回
-    double minPrice = 0, maxPrice = 0;
-    if (description.contains("手机") || description.contains("iPhone")) {
-        minPrice = 2000; maxPrice = 3000;
-    } else if (description.contains("教材") || description.contains("书")) {
-        minPrice = 20; maxPrice = 80;
-    } else if (description.contains("电脑") || description.contains("笔记本")) {
-        minPrice = 2000; maxPrice = 5000;
-    } else {
-        minPrice = 50; maxPrice = 200;
+    // 构建给AI的提示词
+    QString prompt = QString(
+                         "你是一个专业的二手商品估价助手。请根据以下商品信息进行估价：\n"
+                         "商品描述：%1\n\n"
+                         "请以JSON格式返回以下信息：\n"
+                         "{\n"
+                         "  \"min_price\": 最低估价（元），\n"
+                         "  \"max_price\": 最高估价（元），\n"
+                         "  \"confidence\": 置信度（0-100的整数），\n"
+                         "  \"reason\": 估价理由（简短说明），\n"
+                         "  \"condition_assessment\": \"成色评估（如：全新/9成新/8成新等）\"，\n"
+                         "  \"risk_level\": \"风险等级（低/中/高）\"\n"
+                         "}\n\n"
+                         "只返回JSON，不要有其他内容。"
+                         ).arg(description);
+
+    QString resultText;
+    bool apiSuccess = false;
+
+    // 调用混元API
+    HunyuanClient::instance()->analyzeImageAndText(imageBase64, prompt,
+                                                   [&](bool success, const QString& content) {
+                                                       apiSuccess = success;
+                                                       resultText = content;
+                                                   });
+
+    if (!apiSuccess) {
+        QJsonObject dataObj;
+        dataObj["min_price"] = -1;
+        dataObj["max_price"] = -1;
+        dataObj["confidence"] = -1;
+        dataObj["reason"] = "error";
+        dataObj["condition_assessment"] = "error";
+        dataObj["risk_level"] = "error";
+        return {{"success", false}, {"data", dataObj}};
     }
 
-    // 保存估价记录
+    // 解析AI返回的JSON
+    QJsonParseError parseError;
+    QJsonDocument doc = QJsonDocument::fromJson(resultText.toUtf8(), &parseError);
+
+    if (parseError.error != QJsonParseError::NoError) {
+        qWarning() << "AI response parse error:" << parseError.errorString();
+        qWarning() << "Raw response:" << resultText;
+        QJsonObject dataObj;
+        dataObj["min_price"] = -1;
+        dataObj["max_price"] = -1;
+        dataObj["confidence"] = -1;
+        dataObj["reason"] = "error";
+        dataObj["condition_assessment"] = "error";
+        dataObj["risk_level"] = "error";
+        return {{"success", false}, {"data", dataObj},{"AI response parse error:", parseError.errorString()},{"Raw response:", resultText}};
+    }
+
+    QJsonObject aiResult = doc.object();
+
+    // 提取估价信息
+    double minPrice = aiResult.value("min_price").toDouble();
+    double maxPrice = aiResult.value("max_price").toDouble();
+    double confidence = aiResult.value("confidence").toDouble();
+    QString reason = aiResult.value("reason").toString();
+    QString conditionAssessment = aiResult.value("condition_assessment").toString();
+    QString riskLevel = aiResult.value("risk_level").toString();
+
+    // 保存估价记录到数据库
     QJsonObject valuation;
-    valuation["goods_id"] = 0; // 暂时没有关联商品，设为0
+    valuation["goods_id"] = 0;
     valuation["user_id"] = userId;
     valuation["description"] = description;
-    valuation["image_url"] = imagePath;
+    valuation["image_url"] = "";
     valuation["min_price"] = minPrice;
     valuation["max_price"] = maxPrice;
-    valuation["confidence"] = 85.0;
+    valuation["confidence"] = confidence;
     m_db->addAIValuation(valuation);
 
     QJsonObject dataObj;
     dataObj["min_price"] = minPrice;
     dataObj["max_price"] = maxPrice;
-    dataObj["confidence"] = 85;
+    dataObj["confidence"] = confidence;
+    dataObj["reason"] = reason;
+    dataObj["condition_assessment"] = conditionAssessment;
+    dataObj["risk_level"] = riskLevel;
+
     return {{"success", true}, {"data", dataObj}};
 }
 

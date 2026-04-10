@@ -1,9 +1,14 @@
 #include <QCoreApplication>
 #include <QTimer>
+#include <QFile>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QDir>
 #include "httpserver.h"
 #include "websocketserver.h"
 #include "apihandler.h"
 #include "databasemanager.h"
+#include "hunyuanclient.h"
 
 int main(int argc, char *argv[])
 {
@@ -14,6 +19,31 @@ int main(int argc, char *argv[])
     if (!db->initialize("localhost", "smartcampussecondhandtradingsystem", "root", "Cmh20041104Cmh", 3306)) {
         qCritical() << "Database initialization failed";
         return 1;
+    }
+
+    // 读取配置文件
+    QString configPath = QDir::currentPath() + "/config.json";
+    QFile configFile(configPath);
+    if (!configFile.open(QIODevice::ReadOnly)) {
+        qCritical() << "Failed to open config.json";
+    } else {
+        QByteArray configData = configFile.readAll();
+        QJsonDocument configDoc = QJsonDocument::fromJson(configData);
+        if (!configDoc.isNull() && configDoc.isObject()) {
+            QJsonObject config = configDoc.object();
+
+            // 读取混元 API Key
+            QString hunyuanApiKey = config.value("hunyuan_api_key").toString();
+            if (!hunyuanApiKey.isEmpty()) {
+                QString hunyuanModel = config.value("hunyuan_model").toString("hunyuan-vision");
+                HunyuanClient::instance()->initialize(hunyuanApiKey, hunyuanModel);
+                qInfo() << "Hunyuan AI initialized from config file";
+            } else {
+                qWarning() << "No hunyuan_api_key in config.json";
+            }
+        } else {
+            qWarning() << "Invalid config.json format";
+        }
     }
 
     // 创建WebSocket服务器（端口8081）
