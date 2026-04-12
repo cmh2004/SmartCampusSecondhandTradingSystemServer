@@ -430,7 +430,9 @@ QJsonArray DatabaseManager::searchGoods(const QString& keyword, int categoryId,
                                         const QString& sortBy, int page, int pageSize)
 {
     QMutexLocker locker(&m_mutex);
-    QString sql = "SELECT * FROM goods WHERE status = 1"; // 1=已上架
+    QString sql = "SELECT goods.*, "
+                  "(SELECT image_url FROM goods_image WHERE goods_id = goods.id ORDER BY sort_order LIMIT 1) AS image_url "
+                  "FROM goods WHERE goods.status = 1";
     QList<QVariant> binds;
 
     if (!keyword.isEmpty()) {
@@ -539,15 +541,21 @@ QJsonObject DatabaseManager::getOrderBySn(const QString& orderSn)
     return execSelectOne("SELECT * FROM `order` WHERE order_sn = ?", {orderSn});
 }
 
-QJsonArray DatabaseManager::getOrdersByUser(int userId, int status, int page, int pageSize)
+QJsonArray DatabaseManager::getOrdersByUser(int userId, int status, const QString &keyword, int page, int pageSize)
 {
     QMutexLocker locker(&m_mutex);
-    QString sql = "SELECT * FROM `order` WHERE buyer_id = ?";
+    QString sql = "SELECT * FROM `order` WHERE (buyer_id = ? OR seller_id = ?)";
     QList<QVariant> binds;
-    binds << userId;
+    binds << userId << userId;
     if (status >= 0) {
         sql += " AND status = ?";
         binds << status;
+    }
+    // 关键词搜索
+    if (!keyword.isEmpty()) {
+        sql += " AND goods_title LIKE ?";
+        QString pattern = "%" + keyword + "%";
+        binds << pattern;
     }
     sql += " ORDER BY create_time DESC LIMIT ? OFFSET ?";
     binds << pageSize << (page - 1) * pageSize;
@@ -1000,4 +1008,20 @@ int DatabaseManager::getCategoryIdByName(const QString &name)
         return 0; // 未找到则返回0（或其他默认）
     }
     return query.value(0).toInt();
+}
+
+int DatabaseManager::getLastInsertId()
+{
+    QSqlQuery query(m_db);
+    if (query.exec("SELECT LAST_INSERT_ID()") && query.next()) {
+        return query.value(0).toInt();
+    }
+    return 0;
+}
+
+bool DatabaseManager::addGoodsImage(int goodsId, const QString& imageUrl, int sortOrder)
+{
+    QMutexLocker locker(&m_mutex);
+    QString sql = "INSERT INTO goods_image (goods_id, image_url, sort_order) VALUES (?, ?, ?)";
+    return execInsert(sql, {goodsId, imageUrl, sortOrder});
 }

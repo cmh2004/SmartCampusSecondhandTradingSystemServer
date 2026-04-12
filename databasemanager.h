@@ -58,12 +58,14 @@ public:
     QJsonArray getGoodsImages(int goodsId);
     QJsonArray getRecommendedGoods(int limit);
     QJsonArray getPendingGoods(int page,int pageSize);
+    int getLastInsertId();
+    bool addGoodsImage(int goodsId, const QString& imageUrl, int sortOrder = 0);
 
     // ==================== 订单相关 ====================
     bool addOrder(const QJsonObject& order); // 需包含 buyer_id, seller_id, goods_id, deal_price, goods_title, goods_image 等
     QJsonObject getOrder(int orderId);
     QJsonObject getOrderBySn(const QString& orderSn);
-    QJsonArray getOrdersByUser(int userId, int status = -1, int page = 1, int pageSize = 20);
+    QJsonArray getOrdersByUser(int userId, int status, const QString &keyword = "", int page = 1, int pageSize = 20);
     QJsonArray getOrdersBySeller(int sellerId, int status = -1, int page = 1, int pageSize = 20);
     bool updateOrderStatus(int orderId, int status, const QString& reason = "");
     bool updateOrderPayment(int orderId, qint64 paymentTime); // 支付成功
@@ -127,7 +129,7 @@ private:
     static QString hashPassword(const QString& plainPassword, const QString& salt);
 
     QSqlDatabase m_db;
-    QMutex m_mutex;
+    QRecursiveMutex  m_mutex;
     static DatabaseManager* m_instance;
 };
 

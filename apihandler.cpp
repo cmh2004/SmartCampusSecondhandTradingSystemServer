@@ -57,10 +57,10 @@ QByteArray ApiHandler::handleRequest(const QString &method, const QString &path,
         response = handleUploadAvatar(userId, request);
     } else if (routeKey == "POST:/api/goods/publish") {
         response = handlePublishGoods(userId, request);
-    } else if (routeKey == "GET:/api/goods/search") {
+    } else if (routeKey == "POST:/api/goods/search") {
         response = handleSearchGoods(request);
-    } else if (routeKey == "GET:/api/goods/detail") {
-        response = handleGetGoodsDetail(request);
+    } else if (routeKey == "POST:/api/goods/detail") {
+        response = handleGetGoodsDetail(userId,request);
     } else if (routeKey == "POST:/api/goods/update") {
         response = handleUpdateGoods(userId, request);
     } else if (routeKey == "POST:/api/goods/delete") {
@@ -75,7 +75,7 @@ QByteArray ApiHandler::handleRequest(const QString &method, const QString &path,
         response = handleConfirmOrder(userId, request);
     } else if (routeKey == "POST:/api/order/cancel") {
         response = handleCancelOrder(userId, request);
-    } else if (routeKey == "GET:/api/order/list") {
+    } else if (routeKey == "POST:/api/order/list") {
         response = handleGetOrderList(userId, request);
     } else if (routeKey == "GET:/api/order/detail") {
         response = handleGetOrderDetail(userId, request);
@@ -95,7 +95,7 @@ QByteArray ApiHandler::handleRequest(const QString &method, const QString &path,
         response = handleAddFavorite(userId, request);
     } else if (routeKey == "POST:/api/favorite/remove") {
         response = handleRemoveFavorite(userId, request);
-    } else if (routeKey == "GET:/api/favorite/list") {
+    } else if (routeKey == "POST:/api/favorite/list") {
         response = handleGetFavorites(userId, request);
     } else if (routeKey == "GET:/api/credit/score") {
         response = handleGetCreditScore(userId, request);
@@ -111,7 +111,7 @@ QByteArray ApiHandler::handleRequest(const QString &method, const QString &path,
         response = handleGetDisputeDetail(userId, request);
     } else if (routeKey == "GET:/api/dispute/mylist") {
         response = handleGetMyDisputes(userId, request);
-    } else if (routeKey == "GET:/api/admin/pending_goods") {
+    } else if (routeKey == "POST:/api/admin/pending_goods") {
         response = handleGetPendingGoods(userId, request);
     } else if (routeKey == "POST:/api/admin/review_goods") {
         response = handleReviewGoods(userId, request);
@@ -188,9 +188,11 @@ QJsonObject ApiHandler::handleLogin(const QJsonObject &data)
         return {{"success", false}, {"error", "密码错误"}};
     }
 
-    // 检查角色（可选）
-    if (role == "admin" && user.value("role").toString().toInt() != 1) {
-        return {{"success", false}, {"error", "非管理员账号"}};
+    // 检查角色是否匹配
+    int requestedRole = (role == "admin") ? 1 : 0;
+    int actualRole = user.value("role").toString().toInt();
+    if (requestedRole != actualRole) {
+        return {{"success", false}, {"error", "账号角色不匹配，请选择正确的身份登录"}};
     }
 
     // 生成token（简单方案：user_id + 随机数）
@@ -219,7 +221,7 @@ QJsonObject ApiHandler::handleRegister(const QJsonObject &data)
     QString password = data.value("password").toString(); // 客户端已MD5加密
     QString nickname = data.value("nickname").toString();
     QString email = data.value("email").toString();
-    QString phone = data.value("phone").toString();
+    QString phone = data.value("phone").toString();\
     int role = data.value("role").toInt(0); // 默认 0，可选 1
 
     // 检查账号是否已存在
@@ -288,6 +290,14 @@ QJsonObject ApiHandler::handlePublishGoods(int userId, const QJsonObject &data)
     goods["status"] = 0; // 待审核
 
     if (m_db->addGoods(goods)) {
+        // 获取刚插入的商品ID
+        int goodsId = m_db->getLastInsertId();  // 需要实现此方法
+        // 处理图片
+        QJsonArray images = data.value("images").toArray();
+        for (int i = 0; i < images.size(); ++i) {
+            QString imageUrl = images[i].toString();
+            m_db->addGoodsImage(goodsId, imageUrl, i);  // 需要实现此方法
+        }
         return {{"success", true}, {"message", "发布成功，等待审核"}};
     } else {
         return {{"success", false}, {"error", "发布失败"}};
@@ -299,6 +309,10 @@ QJsonObject ApiHandler::handleSearchGoods(const QJsonObject &data)
 {
     QString keyword = data.value("keyword").toString();
     int categoryId = data.value("category_id").toInt();
+    if (categoryId == 0 && data.contains("category")) {
+        QString categoryName = data.value("category").toString();
+        categoryId = m_db->getCategoryIdByName(categoryName);
+    }
     double minPrice = data.value("min_price").toDouble();
     double maxPrice = data.value("max_price").toDouble();
     QString sortBy = data.value("sort_by").toString("publish_time");
@@ -313,7 +327,7 @@ QJsonObject ApiHandler::handleSearchGoods(const QJsonObject &data)
 }
 
 // 获取商品详情
-QJsonObject ApiHandler::handleGetGoodsDetail(const QJsonObject &data)
+QJsonObject ApiHandler::handleGetGoodsDetail(int userId,const QJsonObject &data)
 {
     int goodsId = data.value("goods_id").toInt();
     if (goodsId <= 0) return {{"success", false}, {"error", "无效商品ID"}};
@@ -322,6 +336,11 @@ QJsonObject ApiHandler::handleGetGoodsDetail(const QJsonObject &data)
     if (goods.isEmpty()) {
         return {{"success", false}, {"error", "商品不存在"}};
     }
+
+    // 查询当前用户是否收藏了该商品
+    bool isFavorited = m_db->isFavorited(userId, goodsId);
+    goods["is_favorited"] = isFavorited;
+
     // 获取商品图片
     QJsonArray images = m_db->getGoodsImages(goodsId);
     goods["images"] = images;
@@ -401,8 +420,15 @@ QJsonObject ApiHandler::handleSendMessage(int userId, const QJsonObject &data)
     message["session_id"] = sessionId;
     message["buyer_id"] = userId; // 注意：这里需要区分买家和卖家，简单起见存双方ID，但你的表有buyer_id和seller_id，需要正确填充
     // 实际上chat表需要buyer_id和seller_id，我们需要根据商品获取卖家ID
+    if (goodsId <= 0) {
+        return {{"success", false}, {"error", "商品不存在"}};
+    }
     QJsonObject goods = m_db->getGoods(goodsId);
     if (goods.isEmpty()) return {{"success", false}, {"error", "商品不存在"}};
+    // 如果未指定接收者，则默认为卖家
+    if (receiverId <= 0) {
+        receiverId = goods.value("seller_id").toInt();
+    }
     int sellerId = goods.value("seller_id").toInt();
     if (userId == sellerId) {
         // 卖家发送消息，买家是receiverId
@@ -668,16 +694,49 @@ QJsonObject ApiHandler::handleGetOrderList(int userId, const QJsonObject &data)
     QString status = data.value("status").toString();
     int page = data.value("page").toInt(1);
     int pageSize = data.value("page_size").toInt(20);
-    // status 可能为字符串，需要转换为 int
+    QString keyword = data.value("keyword").toString();
+
     int statusInt = -1;
     if (status == "pending_payment") statusInt = 0;
     else if (status == "paid") statusInt = 1;
     else if (status == "completed") statusInt = 2;
     else if (status == "cancelled") statusInt = 3;
     else if (status == "dispute") statusInt = 4;
-    // 如果是卖家查看订单，可能需要根据卖家ID查询
-    QJsonArray orders = m_db->getOrdersByUser(userId, statusInt, page, pageSize);
-    return {{"success", true}, {"data", QJsonObject{{"orders", orders}}}};
+
+    QJsonArray orders = m_db->getOrdersByUser(userId, statusInt, keyword, page, pageSize);
+
+    // 转换为客户端期望的格式
+    QJsonArray convertedOrders;
+    for (const QJsonValue &val : orders) {
+        QJsonObject orig = val.toObject();
+        QJsonObject newOrder;
+
+        // 字段映射
+        newOrder["order_id"] = orig.value("id").toInt();
+        newOrder["goods_title"] = orig.value("goods_title").toString();
+        newOrder["deal_price"] = orig.value("deal_price").toDouble();
+        newOrder["create_time"] = orig.value("create_time").toString();
+
+        // 状态转换：int -> 中文字符串
+        int statusVal = orig.value("status").toString().toInt();
+        QString statusStr;
+        if (statusVal == 0) statusStr = "待付款";
+        else if (statusVal == 1) statusStr = "待收货";
+        else if (statusVal == 2) statusStr = "已完成";
+        else if (statusVal == 3) statusStr = "已取消";
+        else if (statusVal == 4) statusStr = "纠纷处理中";
+        else statusStr = "未知";
+        newOrder["status"] = statusStr;
+
+        // 获取卖家昵称
+        int sellerId = orig.value("seller_id").toInt();
+        QJsonObject seller = m_db->getUserById(sellerId);
+        newOrder["seller_name"] = seller.value("nickname").toString();
+
+        convertedOrders.append(newOrder);
+    }
+
+    return {{"success", true}, {"data", QJsonObject{{"orders", convertedOrders}}}};
 }
 
 QJsonObject ApiHandler::handleGetOrderDetail(int userId, const QJsonObject &data)
@@ -1012,7 +1071,30 @@ QJsonObject ApiHandler::handleGetPendingGoods(int userId, const QJsonObject &dat
     int page = data.value("page").toInt(1);
     int pageSize = data.value("page_size").toInt(20);
     QJsonArray goodsList = m_db->getPendingGoods(page,pageSize);
-    return {{"success", true}, {"data", goodsList}};
+    QJsonArray newList;
+    for (const QJsonValue &val : goodsList) {
+        QJsonObject goods = val.toObject();
+        QJsonObject newGoods;
+        // 字段映射
+        newGoods["goods_id"] = goods.value("id").toInt();
+        newGoods["name"] = goods.value("name").toString();
+        newGoods["price"] = goods.value("price").toDouble();
+        newGoods["publish_time"] = goods.value("publish_time").toString();
+        // 状态转换
+        int statusInt = goods.value("status").toInt();
+        QString statusStr;
+        if (statusInt == 0) statusStr = "待审核";
+        else if (statusInt == 1) statusStr = "已上架";
+        else if (statusInt == 4) statusStr = "已拒绝";
+        else statusStr = "未知";
+        newGoods["status"] = statusStr;
+        // 查询卖家昵称
+        int sellerId = goods.value("seller_id").toInt();
+        QJsonObject seller = m_db->getUserById(sellerId);
+        newGoods["seller_name"] = seller.value("nickname").toString();
+        newList.append(newGoods);
+    }
+    return {{"success", true}, {"data", newList}};
 }
 
 QJsonObject ApiHandler::handleReviewGoods(int userId, const QJsonObject &data)
@@ -1208,7 +1290,7 @@ QJsonObject ApiHandler::handleEstimatePrice(int userId, const QJsonObject &data)
         dataObj["reason"] = "error";
         dataObj["condition_assessment"] = "error";
         dataObj["risk_level"] = "error";
-        return {{"success", false}, {"data", dataObj},{"AI response parse error:", parseError.errorString()},{"Raw response:", resultText}};
+        return {{"success", false}, {"data", dataObj}};
     }
 
     QJsonObject aiResult = doc.object();

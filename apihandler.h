@@ -42,7 +42,7 @@ private:
     // ========== 商品模块 ==========
     QJsonObject handlePublishGoods(int userId, const QJsonObject &data);
     QJsonObject handleSearchGoods(const QJsonObject &data);
-    QJsonObject handleGetGoodsDetail(const QJsonObject &data);
+    QJsonObject handleGetGoodsDetail(int userId,const QJsonObject &data);
     QJsonObject handleUpdateGoods(int userId, const QJsonObject &data);
     QJsonObject handleDeleteGoods(int userId, const QJsonObject &data);
     QJsonObject handleGetRecommendedGoods(const QJsonObject &data);
