@@ -247,20 +247,11 @@ bool DatabaseManager::updateUser(int userId, const QJsonObject& updates)
     QList<QVariant> binds;
     for (auto it = updates.begin(); it != updates.end(); ++it) {
         QString key = it.key();
-        if (key == "id" || key == "register_time" || key == "salt")
+        // 只跳过不可更新的字段
+        if (key == "id" || key == "register_time")
             continue;
-        if (key == "password") {
-            // 如果更新密码，需要重新生成哈希
-            QString newSalt = generateSalt();
-            QString newHash = hashPassword(it.value().toString(), newSalt);
-            setParts << "password = ?";
-            binds << newHash;
-            setParts << "salt = ?";
-            binds << newSalt;
-        } else {
-            setParts << "`" + key + "` = ?";
-            binds << it.value().toVariant();
-        }
+        setParts << "`" + key + "` = ?";
+        binds << it.value().toVariant();
     }
     if (setParts.isEmpty())
         return true;
@@ -743,8 +734,8 @@ bool DatabaseManager::addChatMessage(const QJsonObject& message)
     QMutexLocker locker(&m_mutex);
     QString sql = R"(
         INSERT INTO chat (session_id, buyer_id, seller_id, goods_id, message_type, content, offer_price,
-                          risk_level, risk_reason, is_read, create_time)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                          risk_level, risk_reason, is_read, create_time,sender_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?)
     )";
     QList<QVariant> binds;
     binds << message.value("session_id").toString()
@@ -757,14 +748,22 @@ bool DatabaseManager::addChatMessage(const QJsonObject& message)
           << message.value("risk_level").toInt(0)
           << message.value("risk_reason").toString()
           << 0 // 未读
-          << QDateTime::currentDateTime();
+          << QDateTime::currentDateTime()
+          << message.value("sender_id").toInt();
     return execInsert(sql, binds);
 }
 
 QJsonArray DatabaseManager::getChatMessages(const QString& sessionId, int limit, int offset)
 {
     QMutexLocker locker(&m_mutex);
-    QString sql = "SELECT * FROM chat WHERE session_id = ? ORDER BY create_time DESC LIMIT ? OFFSET ?";
+    QString sql = R"(
+        SELECT chat.*, u.nickname as sender_name
+        FROM chat
+        LEFT JOIN `user` u ON chat.sender_id = u.id
+        WHERE chat.session_id = ?
+        ORDER BY chat.create_time ASC
+        LIMIT ? OFFSET ?
+    )";
     QJsonArray arr = execSelectMany(sql, {sessionId, limit, offset});
 
     QJsonArray reversed;
@@ -795,16 +794,29 @@ int DatabaseManager::getUnreadCount(int userId)
     return 0;
 }
 
-QJsonArray DatabaseManager::getChatList(int userId){
+QJsonArray DatabaseManager::getChatList(int userId)
+{
+    QMutexLocker locker(&m_mutex);
     QString sql = R"(
-        SELECT session_id, MAX(create_time) as last_time,
-               (SELECT content FROM chat c2 WHERE c2.session_id = c1.session_id ORDER BY create_time DESC LIMIT 1) as last_content
+        SELECT
+            session_id,
+            MAX(goods_id) as goods_id,
+            MAX(create_time) as last_time,
+            (SELECT content FROM chat c2
+             WHERE c2.session_id = c1.session_id
+             ORDER BY create_time DESC LIMIT 1) as last_content,
+            CASE
+                WHEN MAX(buyer_id) = ? THEN
+                    (SELECT nickname FROM `user` WHERE id = MAX(seller_id))
+                ELSE
+                    (SELECT nickname FROM `user` WHERE id = MAX(buyer_id))
+            END as other_name
         FROM chat c1
         WHERE buyer_id = ? OR seller_id = ?
         GROUP BY session_id
         ORDER BY last_time DESC
     )";
-    QList<QVariant> binds = {userId, userId};
+    QList<QVariant> binds = {userId, userId, userId};
     return execSelectMany(sql, binds);
 }
 
@@ -858,6 +870,12 @@ QJsonArray DatabaseManager::getMyReports(int userId, int page, int pageSize){
     QList<QVariant> binds = {userId, pageSize, (page-1)*pageSize};
     return execSelectMany(sql, binds);
 };
+
+QJsonObject DatabaseManager::getReportById(int reportId)
+{
+    QMutexLocker locker(&m_mutex);
+    return execSelectOne("SELECT * FROM report WHERE id = ?", {reportId});
+}
 
 // ==================== 纠纷相关 ====================
 
@@ -1024,4 +1042,40 @@ bool DatabaseManager::addGoodsImage(int goodsId, const QString& imageUrl, int so
     QMutexLocker locker(&m_mutex);
     QString sql = "INSERT INTO goods_image (goods_id, image_url, sort_order) VALUES (?, ?, ?)";
     return execInsert(sql, {goodsId, imageUrl, sortOrder});
+}
+
+QJsonArray DatabaseManager::getMyReviews(int userId, int page, int pageSize){
+    QString sql = R"(
+        SELECT e.*, g.name as goods_name
+        FROM evaluation e
+        JOIN `order` o ON e.order_id = o.id
+        JOIN goods g ON o.goods_id = g.id
+        WHERE e.buyer_id = ?
+        ORDER BY e.create_time DESC
+        LIMIT ? OFFSET ?
+    )";
+    QList<QVariant> binds = {userId, pageSize, (page-1)*pageSize};
+    QJsonArray reviews = execSelectMany(sql, binds);
+    return reviews;
+}
+
+// 添加或更新浏览记录
+bool DatabaseManager::addOrUpdateBrowseHistory(int userId, int goodsId)
+{
+    QSqlQuery query(m_db);
+    query.prepare("INSERT INTO browse_history (user_id, goods_id, browse_time) VALUES (?, ?, NOW()) "
+                  "ON DUPLICATE KEY UPDATE browse_time = NOW()");
+    query.addBindValue(userId);
+    query.addBindValue(goodsId);
+    return query.exec();
+}
+
+// 获取浏览历史（关联商品信息）
+QJsonArray DatabaseManager::getBrowseHistory(int userId, int page, int pageSize)
+{
+    QString sql = "SELECT g.*, bh.browse_time FROM browse_history bh "
+                  "JOIN goods g ON bh.goods_id = g.id "
+                  "WHERE bh.user_id = ? "
+                  "ORDER BY bh.browse_time DESC LIMIT ? OFFSET ?";
+    return execSelectMany(sql, {userId, pageSize, (page-1)*pageSize});
 }

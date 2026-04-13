@@ -39,6 +39,9 @@ public:
     bool updateUserStatus(int userId, int status, const QString& reason = "");
     QJsonArray getCreditHistory(int userId, int page, int pageSize);
     bool updateLastLoginTime(int userId);
+    QJsonArray getMyReviews(int userId, int page = 1, int pageSize = 20);
+    bool addOrUpdateBrowseHistory(int userId, int goodsId);
+    QJsonArray getBrowseHistory(int userId, int page, int pageSize);
 
     // ==================== 商品相关 ====================
     bool addGoods(const QJsonObject& goods); // 需包含 seller_id, category_id, name, price, description 等
@@ -94,6 +97,7 @@ public:
     QJsonArray getReports(const QString& status = "", int page = 1, int pageSize = 20);
     bool updateReportStatus(int reportId, int status, const QString& result = "", int adminId = 0);
     QJsonArray getMyReports(int userId, int page = 1, int pageSize = 20);
+    QJsonObject getReportById(int reportId);
 
     // ==================== 纠纷相关 ====================
     bool addDispute(const QJsonObject& dispute); // 需包含 order_id, complainant_id, defendant_id, type, description 等
@@ -113,6 +117,9 @@ public:
     // ==================== AI估价记录 ====================
     bool addAIValuation(const QJsonObject& valuation); // 需包含 goods_id, user_id, description, image_url, min_price, max_price, confidence
 
+    // 生成随机盐值
+    static QString generateSalt(int length = 16);
+
 private:
     explicit DatabaseManager(QObject* parent = nullptr);
     ~DatabaseManager();
@@ -123,8 +130,6 @@ private:
     bool execInsert(const QString& sql, const QList<QVariant>& bindValues);
     bool execUpdateDelete(const QString& sql, const QList<QVariant>& bindValues);
 
-    // 生成随机盐值
-    static QString generateSalt(int length = 16);
     // 计算密码哈希：MD5(plainPassword + salt)
     static QString hashPassword(const QString& plainPassword, const QString& salt);
 

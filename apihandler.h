@@ -38,6 +38,11 @@ private:
     QJsonObject handleGetUserProfile(int userId, const QJsonObject &data);
     QJsonObject handleUpdateUserProfile(int userId, const QJsonObject &data);
     QJsonObject handleUploadAvatar(int userId, const QJsonObject &data);
+    QJsonObject handleGetMyReviews(int userId, const QJsonObject &data);
+    QJsonObject handleGetMyGoods(int userId, const QJsonObject &data);
+    QJsonObject handleGetBrowseHistory(int userId, const QJsonObject &data);
+    QJsonObject handleAddBrowseHistory(int userId, const QJsonObject &data);
+    QJsonObject handleChangePassword(int userId, const QJsonObject &data);
 
     // ========== 商品模块 ==========
     QJsonObject handlePublishGoods(int userId, const QJsonObject &data);
@@ -46,6 +51,8 @@ private:
     QJsonObject handleUpdateGoods(int userId, const QJsonObject &data);
     QJsonObject handleDeleteGoods(int userId, const QJsonObject &data);
     QJsonObject handleGetRecommendedGoods(const QJsonObject &data);
+    QJsonObject handleUpdateGoodsStatus(int userId, const QJsonObject &data);
+
 
     // ========== 订单模块 ==========
     QJsonObject handleCreateOrder(int userId, const QJsonObject &data);
@@ -93,9 +100,13 @@ private:
     QJsonObject handleGetDisputeList(int userId, const QJsonObject &data);
     QJsonObject handleProcessDispute(int userId, const QJsonObject &data);
     QJsonObject handleGetStatistics(int userId, const QJsonObject &data);
+    QJsonObject handleGetAllReports(int userId, const QJsonObject &data);
+    QJsonObject handleProcessReport(int userId, const QJsonObject &data);
+    QJsonObject handleUpdateCreditScore(int userId, const QJsonObject &data);
 
-    // ========== AI估价 ==========
+    // ========== AI模块 ==========
     QJsonObject handleEstimatePrice(int userId, const QJsonObject &data);
+    QJsonObject handleAISearch(int userId, const QJsonObject &data);
 
     DatabaseManager *m_db;
     WebSocketServer *m_ws;

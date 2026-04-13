@@ -90,6 +90,24 @@ int main(int argc, char *argv[])
     httpServer.route("POST", "/api/user/avatar", [&](const QJsonObject &data) {
         return apiHandler.handleRequest("POST", "/api/user/avatar", QJsonDocument(data).toJson());
     });
+    httpServer.route("POST", "/api/user/goods", [&](const QJsonObject &data) {
+        return apiHandler.handleRequest("POST", "/api/user/goods", QJsonDocument(data).toJson());
+    });
+    httpServer.route("POST", "/api/user/reviews", [&](const QJsonObject &data) {
+        return apiHandler.handleRequest("POST", "/api/user/reviews", QJsonDocument(data).toJson());
+    });
+    httpServer.route("POST", "/api/user/history", [&](const QJsonObject &data) {
+        QByteArray body = QJsonDocument(data).toJson();
+        return apiHandler.handleRequest("POST", "/api/user/history", body);
+    });
+    httpServer.route("POST", "/api/user/history/add", [&](const QJsonObject &data) {
+        QByteArray body = QJsonDocument(data).toJson();
+        return apiHandler.handleRequest("POST", "/api/user/history/add", body);
+    });
+    httpServer.route("POST", "/api/user/change_password", [&](const QJsonObject &data) {
+        QByteArray body = QJsonDocument(data).toJson();
+        return apiHandler.handleRequest("POST", "/api/user/change_password", body);
+    });
 
     // 商品
     httpServer.route("POST", "/api/goods/publish", [&](const QJsonObject &data) {
@@ -109,6 +127,9 @@ int main(int argc, char *argv[])
     });
     httpServer.route("GET", "/api/goods/recommended", [&](const QJsonObject &data) {
         return apiHandler.handleRequest("GET", "/api/goods/recommended", QJsonDocument(data).toJson());
+    });
+    httpServer.route("POST", "/api/goods/update_status", [&](const QJsonObject &data) {
+        return apiHandler.handleRequest("POST", "/api/goods/update_status", QJsonDocument(data).toJson());
     });
 
     // 订单
@@ -135,8 +156,8 @@ int main(int argc, char *argv[])
     httpServer.route("POST", "/api/message/send", [&](const QJsonObject &data) {
         return apiHandler.handleRequest("POST", "/api/message/send", QJsonDocument(data).toJson());
     });
-    httpServer.route("GET", "/api/message/history", [&](const QJsonObject &data) {
-        return apiHandler.handleRequest("GET", "/api/message/history", QJsonDocument(data).toJson());
+    httpServer.route("POST", "/api/message/history", [&](const QJsonObject &data) {
+        return apiHandler.handleRequest("POST", "/api/message/history", QJsonDocument(data).toJson());
     });
     httpServer.route("GET", "/api/message/chatlist", [&](const QJsonObject &data) {
         return apiHandler.handleRequest("GET", "/api/message/chatlist", QJsonDocument(data).toJson());
@@ -168,8 +189,8 @@ int main(int argc, char *argv[])
     });
 
     // 信用
-    httpServer.route("GET", "/api/credit/score", [&](const QJsonObject &data) {
-        return apiHandler.handleRequest("GET", "/api/credit/score", QJsonDocument(data).toJson());
+    httpServer.route("POST", "/api/credit/score", [&](const QJsonObject &data) {
+        return apiHandler.handleRequest("POST", "/api/credit/score", QJsonDocument(data).toJson());
     });
     httpServer.route("GET", "/api/credit/history", [&](const QJsonObject &data) {
         return apiHandler.handleRequest("GET", "/api/credit/history", QJsonDocument(data).toJson());
@@ -193,8 +214,8 @@ int main(int argc, char *argv[])
     httpServer.route("GET", "/api/dispute/mylist", [&](const QJsonObject &data) {
         return apiHandler.handleRequest("GET", "/api/dispute/mylist", QJsonDocument(data).toJson());
     });
-    httpServer.route("GET", "/api/dispute/by_order", [&](const QJsonObject &data) {
-        return apiHandler.handleRequest("GET", "/api/dispute/by_order", QJsonDocument(data).toJson());
+    httpServer.route("POST", "/api/dispute/by_order", [&](const QJsonObject &data) {
+        return apiHandler.handleRequest("POST", "/api/dispute/by_order", QJsonDocument(data).toJson());
     });
 
     // 管理员
@@ -204,14 +225,14 @@ int main(int argc, char *argv[])
     httpServer.route("POST", "/api/admin/review_goods", [&](const QJsonObject &data) {
         return apiHandler.handleRequest("POST", "/api/admin/review_goods", QJsonDocument(data).toJson());
     });
-    httpServer.route("GET", "/api/admin/user_list", [&](const QJsonObject &data) {
-        return apiHandler.handleRequest("GET", "/api/admin/user_list", QJsonDocument(data).toJson());
+    httpServer.route("POST", "/api/admin/user_list", [&](const QJsonObject &data) {
+        return apiHandler.handleRequest("POST", "/api/admin/user_list", QJsonDocument(data).toJson());
     });
     httpServer.route("POST", "/api/admin/update_user_status", [&](const QJsonObject &data) {
         return apiHandler.handleRequest("POST", "/api/admin/update_user_status", QJsonDocument(data).toJson());
     });
-    httpServer.route("GET", "/api/admin/dispute_list", [&](const QJsonObject &data) {
-        return apiHandler.handleRequest("GET", "/api/admin/dispute_list", QJsonDocument(data).toJson());
+    httpServer.route("POST", "/api/admin/dispute_list", [&](const QJsonObject &data) {
+        return apiHandler.handleRequest("POST", "/api/admin/dispute_list", QJsonDocument(data).toJson());
     });
     httpServer.route("POST", "/api/admin/process_dispute", [&](const QJsonObject &data) {
         return apiHandler.handleRequest("POST", "/api/admin/process_dispute", QJsonDocument(data).toJson());
@@ -219,10 +240,23 @@ int main(int argc, char *argv[])
     httpServer.route("GET", "/api/admin/statistics", [&](const QJsonObject &data) {
         return apiHandler.handleRequest("GET", "/api/admin/statistics", QJsonDocument(data).toJson());
     });
+    httpServer.route("POST", "/api/admin/reports", [&](const QJsonObject &data) {
+        return apiHandler.handleRequest("POST", "/api/admin/reports", QJsonDocument(data).toJson());
+    });
+    httpServer.route("POST", "/api/admin/process_report", [&](const QJsonObject &data) {
+        return apiHandler.handleRequest("POST", "/api/admin/process_report", QJsonDocument(data).toJson());
+    });
+    httpServer.route("POST", "/api/admin/update_credit", [&](const QJsonObject &data) {
+        return apiHandler.handleRequest("POST", "/api/admin/update_credit", QJsonDocument(data).toJson());
+    });
 
     // AI估价
     httpServer.route("POST", "/api/ai/estimate", [&](const QJsonObject &data) {
         return apiHandler.handleRequest("POST", "/api/ai/estimate", QJsonDocument(data).toJson());
+    });
+    // AI 智能检索
+    httpServer.route("POST", "/api/ai/search", [&](const QJsonObject &data) {
+        return apiHandler.handleRequest("POST", "/api/ai/search", QJsonDocument(data).toJson());
     });
 
     // 启动HTTP服务器
