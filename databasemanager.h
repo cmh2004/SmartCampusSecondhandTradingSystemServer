@@ -35,16 +35,18 @@ public:
     bool addUser(const QJsonObject& user);  // 需包含 account, password, nickname, email, phone, role 等
     bool updateUser(int userId, const QJsonObject& updates);
     bool updateUserCreditScore(int userId, int delta, const QString& reason); // 信用分变更并记录
-    QJsonArray getUserList(const QString& role = "", const QString& status = "", int page = 1, int pageSize = 20);
+    QJsonArray getUserList(const QString& role = "", const QString& status = "", const QString& keyword = "", int page = 1, int pageSize = 20);
     bool updateUserStatus(int userId, int status, const QString& reason = "");
     QJsonArray getCreditHistory(int userId, int page, int pageSize);
     bool updateLastLoginTime(int userId);
     QJsonArray getMyReviews(int userId, int page = 1, int pageSize = 20);
     bool addOrUpdateBrowseHistory(int userId, int goodsId);
     QJsonArray getBrowseHistory(int userId, int page, int pageSize);
+    // 获取用户信用分最后更新时间
+    QString getCreditScoreLastUpdateTime(int userId);
 
     // ==================== 商品相关 ====================
-    bool addGoods(const QJsonObject& goods); // 需包含 seller_id, category_id, name, price, description 等
+    bool addGoods(const QJsonObject& goods);
     QJsonObject getGoods(int goodsId);
     bool updateGoods(int goodsId, const QJsonObject& updates);
     bool updateGoodsStatus(int goodsId, int status);
@@ -63,6 +65,7 @@ public:
     QJsonArray getPendingGoods(int page,int pageSize);
     int getLastInsertId();
     bool addGoodsImage(int goodsId, const QString& imageUrl, int sortOrder = 0);
+    QJsonArray getGoodsForReview(const QString& keyword, int status, const QString& startDate, const QString& endDate, int page, int pageSize);
 
     // ==================== 订单相关 ====================
     bool addOrder(const QJsonObject& order); // 需包含 buyer_id, seller_id, goods_id, deal_price, goods_title, goods_image 等
@@ -116,6 +119,8 @@ public:
 
     // ==================== AI估价记录 ====================
     bool addAIValuation(const QJsonObject& valuation); // 需包含 goods_id, user_id, description, image_url, min_price, max_price, confidence
+    // 获取商品的 AI 估价记录（最新的）
+    QJsonObject getAIValuationByGoodsId(int goodsId);
 
     // 生成随机盐值
     static QString generateSalt(int length = 16);

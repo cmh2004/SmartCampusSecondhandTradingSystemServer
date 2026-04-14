@@ -20,6 +20,9 @@ public:
     void analyzeImageAndText(const QString& imageBase64,
                              const QString& text,
                              std::function<void(bool, const QString&)> callback);
+    void analyzeImagesAndText(const QJsonArray& imagesBase64,
+                              const QString& text,
+                              std::function<void(bool, const QString&)> callback);
 
     // 纯文本分析
     void analyzeText(const QString& text,

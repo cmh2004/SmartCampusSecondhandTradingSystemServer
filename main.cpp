@@ -192,8 +192,8 @@ int main(int argc, char *argv[])
     httpServer.route("POST", "/api/credit/score", [&](const QJsonObject &data) {
         return apiHandler.handleRequest("POST", "/api/credit/score", QJsonDocument(data).toJson());
     });
-    httpServer.route("GET", "/api/credit/history", [&](const QJsonObject &data) {
-        return apiHandler.handleRequest("GET", "/api/credit/history", QJsonDocument(data).toJson());
+    httpServer.route("POST", "/api/credit/history", [&](const QJsonObject &data) {
+        return apiHandler.handleRequest("POST", "/api/credit/history", QJsonDocument(data).toJson());
     });
 
     // 举报
@@ -248,6 +248,9 @@ int main(int argc, char *argv[])
     });
     httpServer.route("POST", "/api/admin/update_credit", [&](const QJsonObject &data) {
         return apiHandler.handleRequest("POST", "/api/admin/update_credit", QJsonDocument(data).toJson());
+    });
+    httpServer.route("POST", "/api/admin/goods_review_list", [&](const QJsonObject &data) {
+        return apiHandler.handleRequest("POST", "/api/admin/goods_review_list", QJsonDocument(data).toJson());
     });
 
     // AI估价

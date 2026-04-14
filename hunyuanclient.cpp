@@ -83,6 +83,56 @@ void HunyuanClient::analyzeImageAndText(const QString& imageBase64,
     });
 }
 
+void HunyuanClient::analyzeImagesAndText(const QJsonArray& imagesBase64,
+                                         const QString& text,
+                                         std::function<void(bool, const QString&)> callback)
+{
+    QJsonObject requestBody;
+    requestBody["model"] = m_model;
+    requestBody["stream"] = false;
+
+    QJsonArray messages;
+    QJsonObject userMessage;
+    userMessage["role"] = "user";
+
+    QJsonArray contents;
+    // 添加文本
+    QJsonObject textContent;
+    textContent["type"] = "text";
+    textContent["text"] = text;
+    contents.append(textContent);
+
+    // 添加多张图片
+    for (const QJsonValue &val : imagesBase64) {
+        QString imageBase64 = val.toString();
+        if (imageBase64.isEmpty()) continue;
+        QJsonObject imageContent;
+        imageContent["type"] = "image_url";
+        QJsonObject imageUrl;
+        imageUrl["url"] = QString("data:image/jpeg;base64,%1").arg(imageBase64);
+        imageContent["image_url"] = imageUrl;
+        contents.append(imageContent);
+    }
+
+    userMessage["content"] = contents;
+    messages.append(userMessage);
+    requestBody["messages"] = messages;
+
+    sendRequest(requestBody, [callback](bool success, const QJsonObject& response) {
+        if (success) {
+            QJsonArray choices = response.value("choices").toArray();
+            if (!choices.isEmpty()) {
+                QJsonObject choice = choices[0].toObject();
+                QJsonObject message = choice.value("message").toObject();
+                QString content = message.value("content").toString();
+                callback(true, content);
+                return;
+            }
+        }
+        callback(false, QString());
+    });
+}
+
 void HunyuanClient::analyzeText(const QString& text,
                                 std::function<void(bool, const QString&)> callback)
 {

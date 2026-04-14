@@ -296,7 +296,7 @@ bool DatabaseManager::updateUserCreditScore(int userId, int delta, const QString
     return query.exec();
 }
 
-QJsonArray DatabaseManager::getUserList(const QString& role, const QString& status, int page, int pageSize)
+QJsonArray DatabaseManager::getUserList(const QString& role, const QString& status, const QString& keyword, int page, int pageSize)
 {
     QMutexLocker locker(&m_mutex);
     QString sql = "SELECT * FROM `user` WHERE 1=1";
@@ -308,6 +308,11 @@ QJsonArray DatabaseManager::getUserList(const QString& role, const QString& stat
     if (!status.isEmpty()) {
         sql += " AND status = ?";
         binds << status.toInt();
+    }
+    if (!keyword.isEmpty()) {
+        sql += " AND account LIKE ?";
+        QString pattern = "%" + keyword + "%";
+        binds << pattern;
     }
     sql += " ORDER BY id DESC LIMIT ? OFFSET ?";
     binds << pageSize << (page - 1) * pageSize;
@@ -327,8 +332,11 @@ bool DatabaseManager::updateUserStatus(int userId, int status, const QString& re
 QJsonArray DatabaseManager::getCreditHistory(int userId, int page, int pageSize)
 {
     QMutexLocker locker(&m_mutex);
-    QString sql = "SELECT * FROM credit_history WHERE user_id = ? ORDER BY create_time DESC LIMIT ? OFFSET ?";
-    return execSelectMany(sql, {userId, pageSize, (page - 1) * pageSize});
+    QString sql = "SELECT * FROM credit_record WHERE user_id = ? ORDER BY create_time DESC LIMIT ? OFFSET ?";
+    qDebug() << "[DB] getCreditHistory sql:" << sql << "userId:" << userId << "page:" << page << "pageSize:" << pageSize;
+    QJsonArray result = execSelectMany(sql, {userId, pageSize, (page - 1) * pageSize});
+    qDebug() << "[DB] getCreditHistory returned rows:" << result.size();
+    return result;
 }
 
 bool DatabaseManager::updateLastLoginTime(int userId)
@@ -810,13 +818,17 @@ QJsonArray DatabaseManager::getChatList(int userId)
                     (SELECT nickname FROM `user` WHERE id = MAX(seller_id))
                 ELSE
                     (SELECT nickname FROM `user` WHERE id = MAX(buyer_id))
-            END as other_name
+            END as other_name,
+            CASE
+                WHEN MAX(buyer_id) = ? THEN MAX(seller_id)
+                ELSE MAX(buyer_id)
+            END as other_id
         FROM chat c1
         WHERE buyer_id = ? OR seller_id = ?
         GROUP BY session_id
         ORDER BY last_time DESC
     )";
-    QList<QVariant> binds = {userId, userId, userId};
+    QList<QVariant> binds = {userId, userId, userId, userId};
     return execSelectMany(sql, binds);
 }
 
@@ -1001,8 +1013,9 @@ bool DatabaseManager::addAIValuation(const QJsonObject& valuation)
 {
     QMutexLocker locker(&m_mutex);
     QString sql = R"(
-        INSERT INTO ai_valuation (goods_id, user_id, description, image_url, min_price, max_price, confidence)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO ai_valuation (goods_id, user_id, description, image_url,
+            min_price, max_price, confidence, condition_assessment, risk_level, reason)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     )";
     QList<QVariant> binds;
     binds << valuation.value("goods_id").toInt()
@@ -1011,7 +1024,10 @@ bool DatabaseManager::addAIValuation(const QJsonObject& valuation)
           << valuation.value("image_url").toString()
           << valuation.value("min_price").toDouble()
           << valuation.value("max_price").toDouble()
-          << valuation.value("confidence").toDouble();
+          << valuation.value("confidence").toDouble()
+          << valuation.value("condition_assessment").toString()
+          << valuation.value("risk_level").toString()
+          << valuation.value("reason").toString();
     return execInsert(sql, binds);
 }
 
@@ -1078,4 +1094,59 @@ QJsonArray DatabaseManager::getBrowseHistory(int userId, int page, int pageSize)
                   "WHERE bh.user_id = ? "
                   "ORDER BY bh.browse_time DESC LIMIT ? OFFSET ?";
     return execSelectMany(sql, {userId, pageSize, (page-1)*pageSize});
+}
+
+QJsonObject DatabaseManager::getAIValuationByGoodsId(int goodsId)
+{
+    QMutexLocker locker(&m_mutex);
+    QString sql = "SELECT min_price, max_price, confidence, reason, condition_assessment, risk_level "
+                  "FROM ai_valuation WHERE goods_id = ? ORDER BY id DESC LIMIT 1";
+    return execSelectOne(sql, {goodsId});
+}
+
+QString DatabaseManager::getCreditScoreLastUpdateTime(int userId)
+{
+    QMutexLocker locker(&m_mutex);
+    QSqlQuery query(m_db);
+    query.prepare("SELECT create_time FROM credit_record WHERE user_id = ? ORDER BY create_time DESC LIMIT 1");
+    query.addBindValue(userId);
+    if (query.exec() && query.next()) {
+        QDateTime dt = query.value(0).toDateTime();
+        if (dt.isValid()) {
+            return dt.toString("yyyy-MM-dd HH:mm:ss");
+        }
+    }
+    // 如果没有记录，返回注册时间
+    QJsonObject user = getUserById(userId);
+    return user.value("register_time").toString();
+}
+
+QJsonArray DatabaseManager::getGoodsForReview(const QString& keyword, int status, const QString& startDate, const QString& endDate, int page, int pageSize)
+{
+    QMutexLocker locker(&m_mutex);
+    QString sql = "SELECT goods.*, u.nickname as seller_name FROM goods "
+                  "LEFT JOIN `user` u ON goods.seller_id = u.id WHERE 1=1";
+    QList<QVariant> binds;
+
+    if (!keyword.isEmpty()) {
+        sql += " AND goods.name LIKE ?";
+        binds << ("%" + keyword + "%");
+    }
+    if (status >= 0) {
+        sql += " AND goods.status = ?";
+        binds << status;
+    }
+    if (!startDate.isEmpty()) {
+        sql += " AND goods.publish_time >= ?";
+        binds << startDate + " 00:00:00";
+    }
+    if (!endDate.isEmpty()) {
+        sql += " AND goods.publish_time <= ?";
+        binds << endDate + " 23:59:59";
+    }
+
+    sql += " ORDER BY goods.publish_time DESC LIMIT ? OFFSET ?";
+    binds << pageSize << (page - 1) * pageSize;
+
+    return execSelectMany(sql, binds);
 }

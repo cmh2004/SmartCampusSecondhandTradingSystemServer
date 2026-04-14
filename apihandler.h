@@ -103,6 +103,7 @@ private:
     QJsonObject handleGetAllReports(int userId, const QJsonObject &data);
     QJsonObject handleProcessReport(int userId, const QJsonObject &data);
     QJsonObject handleUpdateCreditScore(int userId, const QJsonObject &data);
+    QJsonObject handleGetGoodsForReview(int userId, const QJsonObject &data);
 
     // ========== AI模块 ==========
     QJsonObject handleEstimatePrice(int userId, const QJsonObject &data);
