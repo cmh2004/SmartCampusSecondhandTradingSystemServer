@@ -208,8 +208,8 @@ int main(int argc, char *argv[])
     httpServer.route("POST", "/api/dispute/submit", [&](const QJsonObject &data) {
         return apiHandler.handleRequest("POST", "/api/dispute/submit", QJsonDocument(data).toJson());
     });
-    httpServer.route("GET", "/api/dispute/detail", [&](const QJsonObject &data) {
-        return apiHandler.handleRequest("GET", "/api/dispute/detail", QJsonDocument(data).toJson());
+    httpServer.route("POST", "/api/dispute/detail", [&](const QJsonObject &data) {
+        return apiHandler.handleRequest("POST", "/api/dispute/detail", QJsonDocument(data).toJson());
     });
     httpServer.route("GET", "/api/dispute/mylist", [&](const QJsonObject &data) {
         return apiHandler.handleRequest("GET", "/api/dispute/mylist", QJsonDocument(data).toJson());

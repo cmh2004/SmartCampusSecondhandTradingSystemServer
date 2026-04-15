@@ -119,7 +119,7 @@ QByteArray ApiHandler::handleRequest(const QString &method, const QString &path,
         response = handleGetMyReports(userId, request);
     } else if (routeKey == "POST:/api/dispute/submit") {
         response = handleSubmitDispute(userId, request);
-    } else if (routeKey == "GET:/api/dispute/detail") {
+    } else if (routeKey == "POST:/api/dispute/detail") {
         response = handleGetDisputeDetail(userId, request);
     } else if (routeKey == "GET:/api/dispute/mylist") {
         response = handleGetMyDisputes(userId, request);
@@ -1087,7 +1087,7 @@ QJsonObject ApiHandler::handleGetDisputeDetail(int userId, const QJsonObject &da
     // 只有涉及的用户或管理员可以查看
     if (dispute.value("complainant_id").toInt() != userId && dispute.value("defendant_id").toInt() != userId) {
         QJsonObject user = m_db->getUserById(userId);
-        if (user.value("role").toInt() != 1) {
+        if (user.value("role").toString().toInt() != 1) {
             return {{"success", false}, {"error", "无权查看"}};
         }
     }
