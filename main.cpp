@@ -218,6 +218,17 @@ int main(int argc, char *argv[])
         return apiHandler.handleRequest("POST", "/api/dispute/by_order", QJsonDocument(data).toJson());
     });
 
+    //系统消息
+    httpServer.route("POST", "/api/system/messages", [&](const QJsonObject &data) {
+        return apiHandler.handleRequest("POST", "/api/system/messages", QJsonDocument(data).toJson());
+    });
+    httpServer.route("POST", "/api/system/messages/read", [&](const QJsonObject &data) {
+        return apiHandler.handleRequest("POST", "/api/system/messages/read", QJsonDocument(data).toJson());
+    });
+    httpServer.route("POST", "/api/system/messages/unread_count", [&](const QJsonObject &data) {
+        return apiHandler.handleRequest("POST", "/api/system/messages/unread_count", QJsonDocument(data).toJson());
+    });
+
     // 管理员
     httpServer.route("POST", "/api/admin/pending_goods", [&](const QJsonObject &data) {
         return apiHandler.handleRequest("POST", "/api/admin/pending_goods", QJsonDocument(data).toJson());

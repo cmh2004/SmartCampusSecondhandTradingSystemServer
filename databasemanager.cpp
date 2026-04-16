@@ -989,11 +989,11 @@ QJsonArray DatabaseManager::getSystemMessages(int userId, bool unreadOnly, int p
     return execSelectMany(sql, binds);
 }
 
-bool DatabaseManager::markSystemMessageRead(int messageId)
+bool DatabaseManager::markSystemMessageRead(int messageId, int userId)
 {
     QMutexLocker locker(&m_mutex);
-    QString sql = "UPDATE system_message SET is_read = 1, read_time = ? WHERE id = ?";
-    return execUpdateDelete(sql, {QDateTime::currentDateTime(), messageId});
+    QString sql = "UPDATE system_message SET is_read = 1, read_time = ? WHERE id = ? AND user_id = ?";
+    return execUpdateDelete(sql, {QDateTime::currentDateTime(), messageId, userId});
 }
 
 int DatabaseManager::getUnreadSystemMessageCount(int userId)

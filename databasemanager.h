@@ -114,7 +114,7 @@ public:
     bool addSystemMessage(int userId, int messageType, const QString& title,
                           const QString& content, int relatedId = 0);
     QJsonArray getSystemMessages(int userId, bool unreadOnly = false, int page = 1, int pageSize = 20);
-    bool markSystemMessageRead(int messageId);
+    bool markSystemMessageRead(int messageId, int userId);
     int getUnreadSystemMessageCount(int userId);
 
     // ==================== AI估价记录 ====================

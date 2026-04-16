@@ -151,6 +151,12 @@ QByteArray ApiHandler::handleRequest(const QString &method, const QString &path,
         response = handleEstimatePrice(userId, request);
     } else if (routeKey == "POST:/api/ai/search") {
         response = handleAISearch(userId, request);
+    } else if (routeKey == "POST:/api/system/messages") {
+        response = handleGetSystemMessages(userId, request);
+    } else if (routeKey == "POST:/api/system/messages/read") {
+        response = handleMarkSystemMessageRead(userId, request);
+    } else if (routeKey == "POST:/api/system/messages/unread_count") {
+        response = handleGetUnreadSystemMessageCount(userId, request);
     } else {
         response["success"] = false;
         response["error"] = "Not Found";
@@ -310,6 +316,15 @@ QJsonObject ApiHandler::handleGetUserProfile(int userId, const QJsonObject &data
 // 发布商品
 QJsonObject ApiHandler::handlePublishGoods(int userId, const QJsonObject &data)
 {
+    QJsonObject user = m_db->getUserById(userId);
+    if (user.isEmpty()) {
+        return {{"success", false}, {"error", "用户不存在"}};
+    }
+    int creditScore = user.value("credit_score").toInt();
+    if (creditScore < 60) {
+        return {{"success", false}, {"error", "您的信用分低于60分，暂时无法发布商品。请保持良好的交易行为，提高信用分后再试。"}};
+    }
+
     QJsonObject goods;
     goods["seller_id"] = userId;
     int categoryId = m_db->getCategoryIdByName(data.value("category").toString());
@@ -1722,4 +1737,42 @@ QJsonObject ApiHandler::handleGetGoodsForReview(int userId, const QJsonObject &d
 
     QJsonArray goodsList = m_db->getGoodsForReview(keyword, status, startDate, endDate, page, pageSize);
     return {{"success", true}, {"data", goodsList}};
+}
+
+QJsonObject ApiHandler::handleGetSystemMessages(int userId, const QJsonObject &data)
+{
+    bool unreadOnly = data.value("unread_only").toBool(false);
+    int page = data.value("page").toInt(1);
+    int pageSize = data.value("page_size").toInt(20);
+
+    QJsonArray messages = m_db->getSystemMessages(userId, unreadOnly, page, pageSize);
+
+    QJsonObject result;
+    result["messages"] = messages;
+    result["total"] = messages.size();  // 实际应返回总数，可扩展
+
+    return {{"success", true}, {"data", result}};
+}
+
+QJsonObject ApiHandler::handleMarkSystemMessageRead(int userId, const QJsonObject &data)
+{
+    int messageId = data.value("message_id").toInt();
+    if (messageId <= 0) {
+        return {{"success", false}, {"error", "无效的消息ID"}};
+    }
+
+    // 调用数据库更新，同时校验该消息是否属于当前用户
+    if (m_db->markSystemMessageRead(messageId, userId)) {
+        return {{"success", true}};
+    } else {
+        return {{"success", false}, {"error", "标记失败，可能消息不存在或不属于您"}};
+    }
+}
+
+QJsonObject ApiHandler::handleGetUnreadSystemMessageCount(int userId, const QJsonObject &data)
+{
+    int count = m_db->getUnreadSystemMessageCount(userId);
+    QJsonObject dataObj;
+    dataObj["count"] = count;
+    return {{"success", true}, {"data", dataObj}};
 }

@@ -92,6 +92,11 @@ private:
     QJsonObject handleGetMyDisputes(int userId, const QJsonObject &data);
     QJsonObject handleGetDisputeByOrder(int userId, const QJsonObject &data);
 
+    // 系统消息模块
+    QJsonObject handleGetSystemMessages(int userId, const QJsonObject &data);
+    QJsonObject handleMarkSystemMessageRead(int userId, const QJsonObject &data);
+    QJsonObject handleGetUnreadSystemMessageCount(int userId, const QJsonObject &data);
+
     // ========== 管理员模块 ==========
     QJsonObject handleGetPendingGoods(int userId, const QJsonObject &data);
     QJsonObject handleReviewGoods(int userId, const QJsonObject &data);
